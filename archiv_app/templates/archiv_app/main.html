@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archiv</title>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body>
+    <header>
+        <h1>Archivační Systém</h1>
+    </header>
+    
+    <div class="container">
+        <div class="content">
+            <div class="section">
+                <h2>Vítejte v Archivačním Systému</h2>
+                <p>Tento systém slouží k archivaci dokumentů a fotografií.</p>
+            </div>
+            
+            <div class="section">
+                <h2>Dokumenty</h2>
+                <p>Prohlížejte a spravujte archivované dokumenty.</p>
+                <p>Počet dokumentů v archivu: <strong>{{ dokumenty_count }}</strong></p>
+            </div>
+            
+            <div class="section">
+                <h2>Fotografie</h2>
+                <p>Prohlížejte a spravujte archivované fotografie.</p>
+                <p>Počet fotografií v archivu: <strong>{{ fotografie_count }}</strong></p>
+            </div>
+            
+            <div class="section">
+                <h2>Osoby</h2>
+                <p>Spravujte informace o osobách spojených s archivovanými materiály.</p>
+                <p>Počet osob v databázi: <strong>{{ osoby_count }}</strong></p>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>&copy; 2025 Archivační Systém</p>
+    </footer>
+</body>
+</html> 
