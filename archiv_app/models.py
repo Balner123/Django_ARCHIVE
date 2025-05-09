@@ -90,7 +90,7 @@ class Dokument(ArchivovanyObjekt):
         help_text='Vyberte jazyk, ve kterém je dokument napsán.',
         blank=False, # Nastavte na False, pokud je jazyk povinný
         default='cs', # Volitelně nastavte výchozí jazyk
-        error_messages={'blank': 'Jazyk dokumentu musí být vybrán.'} # Pokud je povinný
+        error_messages={'blank': 'Jazyk dokumentu musí být vybrán.'} # Pokud je povinnýllled
     )
     def save(self, *args, **kwargs):
         self.typ = 'dokument'
