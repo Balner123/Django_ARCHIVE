@@ -1,0 +1,79 @@
+{% extends "archiv_app/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ form_title }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <div class="card shadow-cubic">
+                <div class="card-header">
+                    <h3 class="mb-0 fs-5">{{ form_title|upper }}</h3>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" enctype="multipart/form-data" action=".">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary px-4 py-2">
+                                <i class="fas fa-save me-2"></i>
+                                {% if is_edit %}
+                                    ULOŽIT ZMĚNY
+                                {% else %}
+                                    PŘIDAT
+                                {% endif %}
+                            </button>
+                            <a href="{% if type == 'druh' and next %}{{ next }}{% elif object and object.get_absolute_url %}{{ object.get_absolute_url }}{% elif type == 'dokument' %}{% url 'archiv_app:dokumenty_list' %}{% elif type == 'fotografie' %}{% url 'archiv_app:fotografie_list' %}{% elif type == 'osoba' %}{% url 'archiv_app:osoby_list' %}{% else %}{% url 'archiv_app:main' %}{% endif %}" class="btn btn-secondary px-4 py-2">
+                                <i class="fas fa-times me-2"></i>ZRUŠIT
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            {% if type == 'dokument' or type == 'fotografie' %}
+            <div class="mt-4 text-center">
+                <p class="mb-0">
+                    <a href="{% url 'archiv_app:main' %}" class="text-decoration-none">
+                        <i class="fas fa-home me-1"></i> Zpět na hlavní stránku
+                    </a>
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add custom styling to crispy form inputs
+    const formInputs = document.querySelectorAll('.form-control, .form-select');
+    formInputs.forEach(input => {
+        input.classList.add('mb-3');
+    });
+    
+    // Add bold styling to form labels
+    const formLabels = document.querySelectorAll('label');
+    formLabels.forEach(label => {
+        label.style.fontWeight = '600';
+        label.style.textTransform = 'uppercase';
+        label.style.fontSize = '0.85rem';
+    });
+    
+    // Check if the current form is for adding/editing a Dokument
+    const addDruhLink = document.getElementById('add_new_druh_link');
+    if (addDruhLink) {
+        let addDruhUrl = "{% url 'archiv_app:add_druh' %}";
+        let currentPath = window.location.pathname + window.location.search;
+        addDruhLink.href = addDruhUrl + "?next=" + encodeURIComponent(currentPath);
+        
+        // Style the "add new druh" link as a button
+        addDruhLink.classList.add('btn', 'btn-sm', 'btn-outline-primary', 'mt-1');
+        addDruhLink.innerHTML = '<i class="fas fa-plus me-1"></i> Přidat nový druh';
+    }
+});
+</script>
+{% endblock %} 

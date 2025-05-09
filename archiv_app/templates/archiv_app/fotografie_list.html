@@ -1,0 +1,107 @@
+{% extends 'archiv_app/base.html' %} {# Předpokládáme existenci base.html #}
+
+{% block title %}Seznam Fotografií{% endblock %}
+
+{% block content %}
+<style>
+    .img-thumbnail-table {
+        max-width: 80px; /* Adjusted for better table fit */
+        max-height: 80px;
+        object-fit: cover;
+    }
+</style>
+<div class="container">
+    <div class="card shadow-cubic mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="mb-0 fs-4">SEZNAM FOTOGRAFIÍ</h2>
+            <div>
+                <a href="{% url 'archiv_app:add_fotografie' %}" class="btn btn-primary me-2">
+                    <i class="fas fa-plus me-2"></i>PŘIDAT FOTOGRAFII
+                </a>
+                <a href="{% url 'archiv_app:main' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-home me-2"></i>DOMŮ
+                </a>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if fotografie_list %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th class="text-center">NÁHLED</th>
+                                <th>POPIS</th>
+                                <th>ROK</th>
+                                <th>DATUM ARCHIVACE</th>
+                                <th>OSOBY</th>
+                                <th>TYP</th>
+                                <th class="text-center">ROZMĚRY</th>
+                                <th class="text-center">SOUBOR</th>
+                                <th class="text-end">AKCE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for foto in fotografie_list %}
+                                <tr>
+                                    <td class="text-center">
+                                        {% if foto.soubor and foto.soubor.file %}
+                                            <img src="{{ foto.soubor.file.url }}" alt="{{ foto.popis|default:'Náhled' }}" class="img-thumbnail img-thumbnail-table">
+                                        {% else %}
+                                            <i class="fas fa-image fa-2x text-secondary"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-normal">{{ foto.popis|truncatewords:10|default:"-" }}</td>
+                                    <td>{{ foto.stari|default:"-" }}</td>
+                                    <td>{{ foto.datum_archivace|date:"d.m.Y"|default:"-" }}</td>
+                                    <td>
+                                        {% with hlavni_osoba=foto.osoba dalsi_osoby_qs=foto.osoby.all %}
+                                            {% if not hlavni_osoba and not dalsi_osoby_qs.exists %}-{% else %}
+                                                {% if hlavni_osoba %}<strong>{{ hlavni_osoba|truncatechars:20 }}</strong>{% endif %}
+                                                {% for p in dalsi_osoby_qs %}
+                                                    {% if p != hlavni_osoba %}
+                                                        {% if hlavni_osoba or not forloop.first %}, {% endif %}{{ p|truncatechars:20 }}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td>{{ foto.typ_fotografie|default:"-" }}</td>
+                                    <td class="text-center">{% if foto.vyska and foto.sirka %}{{ foto.vyska }}x{{ foto.sirka }} cm{% else %}-{% endif %}</td>
+                                    <td class="text-center">
+                                        {% if foto.soubor and foto.soubor.file %}
+                                            <a href="{{ foto.soubor.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary px-2 py-1">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="{% url 'archiv_app:edit_fotografie' foto.pk %}" class="btn btn-sm btn-primary me-1">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="{% url 'archiv_app:delete_fotografie' foto.pk %}" method="post" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Opravdu si přejete smazat tuto fotografii?');">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center p-5">
+                    <i class="fas fa-images fa-3x mb-3 text-secondary"></i>
+                    <p class="lead">Nebyly nalezeny žádné fotografie.</p>
+                    <a href="{% url 'archiv_app:add_fotografie' %}" class="btn btn-primary mt-2">
+                        <i class="fas fa-plus me-2"></i>PŘIDAT FOTOGRAFII
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

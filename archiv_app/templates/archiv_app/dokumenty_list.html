@@ -1,0 +1,92 @@
+{% extends 'archiv_app/base.html' %}
+
+{% block title %}Seznam Dokumentů{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow-cubic mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="mb-0 fs-4">SEZNAM DOKUMENTŮ</h2>
+            <div>
+                <a href="{% url 'archiv_app:add_dokument' %}" class="btn btn-primary me-2">
+                    <i class="fas fa-plus me-2"></i>PŘIDAT DOKUMENT
+                </a>
+                <a href="{% url 'archiv_app:main' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-home me-2"></i>DOMŮ
+                </a>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if dokumenty_list %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>POPIS</th>
+                                <th>ROK</th>
+                                <th>DATUM ARCHIVACE</th>
+                                <th>OSOBY</th>
+                                <th>DRUH</th>
+                                <th>JAZYK</th>
+                                <th class="text-center">SOUBOR</th>
+                                <th class="text-end">AKCE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dokument in dokumenty_list %}
+                                <tr>
+                                    <td class="fw-normal">{{ dokument.popis|truncatewords:10|default:"-" }}</td>
+                                    <td>{{ dokument.stari|default:"-" }}</td>
+                                    <td>{{ dokument.datum_archivace|date:"d.m.Y"|default:"-" }}</td>
+                                    <td>
+                                        {% with hlavni_osoba=dokument.osoba dalsi_osoby_qs=dokument.osoby.all %}
+                                            {% if not hlavni_osoba and not dalsi_osoby_qs.exists %}-{% else %}
+                                                {% if hlavni_osoba %}<strong>{{ hlavni_osoba|truncatechars:20 }}</strong>{% endif %}
+                                                {% for p in dalsi_osoby_qs %}
+                                                    {% if p != hlavni_osoba %}
+                                                        {% if hlavni_osoba or not forloop.first %}, {% endif %}{{ p|truncatechars:20 }}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td>{{ dokument.druh.nazev|default:"-" }}</td>
+                                    <td>{{ dokument.get_jazyk_display|default:"-" }}</td>
+                                    <td class="text-center">
+                                        {% if dokument.soubor and dokument.soubor.file %}
+                                            <a href="{{ dokument.soubor.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary px-2 py-1">
+                                                <i class="fas fa-file-download"></i>
+                                            </a>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="{% url 'archiv_app:edit_dokument' dokument.pk %}" class="btn btn-sm btn-primary me-1">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="{% url 'archiv_app:delete_dokument' dokument.pk %}" method="post" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Opravdu si přejete smazat tento dokument?');">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center p-5">
+                    <i class="fas fa-file-alt fa-3x mb-3 text-secondary"></i>
+                    <p class="lead">Nebyly nalezeny žádné dokumenty.</p>
+                    <a href="{% url 'archiv_app:add_dokument' %}" class="btn btn-primary mt-2">
+                        <i class="fas fa-plus me-2"></i>PŘIDAT DOKUMENT
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

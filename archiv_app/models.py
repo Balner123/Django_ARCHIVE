@@ -4,8 +4,8 @@ from django.core.validators import MinValueValidator
 from polymorphic.models import PolymorphicModel
 
 class Osoba(models.Model):
-    jmeno = models.CharField(max_length=100, blank=False, null=False, help_text="Jméno osoby", verbose_name="Jméno")
-    prijmeni = models.CharField(max_length=100, blank=False, null=False, help_text="Příjmení osoby", verbose_name="Příjmení")
+    jmeno = models.CharField(max_length=100, blank=False, null=False, help_text="Jméno osoby", verbose_name="Jméno", error_messages={'blank': 'Jméno osoby nesmí být prázdné.'})
+    prijmeni = models.CharField(max_length=100, blank=False, null=False, help_text="Příjmení osoby", verbose_name="Příjmení", error_messages={'blank': 'Příjmení osoby nesmí být prázdné.'})
     narozeni = models.DateField(null=True, blank=True, help_text="Datum narození osoby", verbose_name="Datum narození")
     umrti = models.DateField(null=True, blank=True, help_text="Datum úmrtí osoby", verbose_name="Datum úmrtí")
     pohlavi = models.CharField(max_length=10, choices=[('M', 'Muž'), ('F', 'Žena')], blank=True, null=True, help_text="Pohlaví osoby", verbose_name="Pohlaví")
@@ -18,6 +18,16 @@ class Osoba(models.Model):
     def __str__(self):
         return f"{self.jmeno} {self.prijmeni}"
 
+    @property
+    def cele_jmeno(self):
+        return f"{self.jmeno} {self.prijmeni}"
+
+    def get_archiválie_count(self):
+        main_object_ids = set(self.archivovanyobjekt_set.values_list('id', flat=True))
+        m2m_object_ids = set(self.objekty.values_list('id', flat=True))
+        total_unique_object_ids = main_object_ids.union(m2m_object_ids)
+        return len(total_unique_object_ids)
+
 
 class Soubor(models.Model):
     file = models.FileField(upload_to='archivovane_soubory/', help_text="Soubor k archivaci", verbose_name="Soubor")
@@ -29,7 +39,7 @@ class Soubor(models.Model):
         return self.file.name
 
 class Druh(models.Model):
-    nazev = models.CharField(max_length=100, help_text="Název druhu dokumentu", verbose_name="Název druhu")
+    nazev = models.CharField(max_length=100, blank=False, help_text="Název druhu dokumentu", verbose_name="Název druhu", error_messages={'blank': 'Název druhu dokumentu nesmí být prázdný.'})
     popis = models.TextField(blank=True, help_text="Popis druhu dokumentu", verbose_name="Popis druhu")
     class Meta:
         ordering = ['nazev']
@@ -45,12 +55,12 @@ class ArchivovanyObjekt(PolymorphicModel):
         ('fotografie', 'Fotografie'),
     ]
 
-    typ = models.CharField(max_length=20, choices=TYPY_OBJEKTU,help_text="Typ objektu", verbose_name="Typ objektu")
+    typ = models.CharField(max_length=20, choices=TYPY_OBJEKTU, blank=False, help_text="Typ objektu", verbose_name="Typ objektu", error_messages={'blank': 'Typ objektu musí být vybrán.'})
     osoba = models.ForeignKey(Osoba, on_delete=models.SET_NULL, null=True, blank=True,help_text="Osoba, s objektem spojená", verbose_name="Osoba")
     soubor = models.ForeignKey(Soubor, on_delete=models.SET_NULL, null=True, blank=True, help_text="Soubor k archivaci", verbose_name="Soubor")
     datum_archivace = models.DateField(default=timezone.now, help_text="Datum archivace objektu", verbose_name="Datum archivace")
     popis = models.TextField(blank=True, help_text="Popis objektu", verbose_name="Popis")
-    stari = models.IntegerField(help_text="Z jakého roku objekt pochází", verbose_name="Stáří")
+    stari = models.IntegerField(help_text="Z jakého roku objekt pochází", verbose_name="Stáří", blank=False, error_messages={'blank': 'Rok původu objektu musí být vyplněn.'})
 
     osoby = models.ManyToManyField(Osoba, related_name="objekty", blank=True, help_text="Osoby spojené s objektem", verbose_name="Osoby")
     class Meta:
@@ -71,7 +81,6 @@ class Dokument(ArchivovanyObjekt):
         ('fr', 'Francouzština'),
         ('la', 'Latina'),
         ('ru', 'Ruština'),
-        # Přidejte další jazyky podle potřeby
         ('jin', 'Jiný'),
     ]
 
