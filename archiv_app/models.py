@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
 from polymorphic.models import PolymorphicModel
 
 class Osoba(models.Model):
@@ -49,6 +50,16 @@ class Druh(models.Model):
     def __str__(self):
         return self.nazev
 
+STOLETÍ_CHOICES = [
+    ('15', '15. století'),
+    ('16', '16. století'),
+    ('17', '17. století'),
+    ('18', '18. století'),
+    ('19', '19. století'),
+    ('20', '20. století'),
+    ('21', '21. století'),
+]
+
 class ArchivovanyObjekt(PolymorphicModel):
     TYPY_OBJEKTU = [
         ('dokument', 'Dokument'),
@@ -60,16 +71,57 @@ class ArchivovanyObjekt(PolymorphicModel):
     soubor = models.ForeignKey(Soubor, on_delete=models.SET_NULL, null=True, blank=True, help_text="Soubor k archivaci", verbose_name="Soubor")
     datum_archivace = models.DateField(default=timezone.now, help_text="Datum archivace objektu", verbose_name="Datum archivace")
     popis = models.TextField(blank=True, help_text="Popis objektu", verbose_name="Popis")
-    stari = models.IntegerField(help_text="Z jakého roku objekt pochází", verbose_name="Stáří", blank=False, error_messages={'blank': 'Rok původu objektu musí být vyplněn.'})
+    
+    # Původní pole 'stari' je nahrazeno těmito třemi:
+    datum_vzniku_presne = models.DateField(
+        verbose_name="Přesné datum vzniku", 
+        null=True, blank=True, 
+        help_text="Přesné datum vzniku objektu (DD.MM.RRRR)."
+    )
+    rok_vzniku = models.PositiveIntegerField(
+        verbose_name="Rok vzniku", 
+        null=True, blank=True, 
+        help_text="Rok vzniku objektu (např. 1950).",
+        validators=[MinValueValidator(1000), MaxValueValidator(timezone.now().year + 5)] # Příklad validátorů
+    )
+    stoleti_vzniku = models.CharField(
+        max_length=2, 
+        choices=STOLETÍ_CHOICES, 
+        verbose_name="Století vzniku", 
+        null=True, blank=True, 
+        help_text="Století, ve kterém objekt vznikl."
+    )
 
     osoby = models.ManyToManyField(Osoba, related_name="objekty", blank=True, help_text="Osoby spojené s objektem", verbose_name="Osoby")
+
     class Meta:
         ordering = ['-datum_archivace', 'typ']
         verbose_name = 'Archivovaný objekt'
         verbose_name_plural = 'Archivované objekty'
     
+    def clean(self):
+        super().clean()
+        datace_fields = [self.datum_vzniku_presne, self.rok_vzniku, self.stoleti_vzniku]
+        filled_datace_fields = sum(1 for field in datace_fields if field is not None)
+        
+        if filled_datace_fields > 1:
+            raise ValidationError("Vyplňte prosím pouze jednu možnost datace (Přesné datum, Rok, nebo Století).")
+        # Pokud chcete, aby alespoň jedna byla povinná, přidejte:
+        # if filled_datace_fields == 0:
+        #     raise ValidationError("Je nutné vyplnit alespoň jednu formu datace (Přesné datum, Rok, nebo Století).")
+
+    def get_datace_display(self):
+        if self.datum_vzniku_presne:
+            return self.datum_vzniku_presne.strftime("%d.%m.%Y")
+        elif self.rok_vzniku:
+            return str(self.rok_vzniku)
+        elif self.stoleti_vzniku:
+            return self.get_stoleti_vzniku_display()
+        return "-"
+    get_datace_display.short_description = "Datace vzniku"
+
     def __str__(self):
-        return f"{self.typ.capitalize()} #{self.id}"
+        return f"{self.typ.capitalize()} #{self.id} ({self.get_datace_display()})"
 
 class Dokument(ArchivovanyObjekt):
     JAZYK_CHOICES = [
@@ -88,18 +140,18 @@ class Dokument(ArchivovanyObjekt):
         Druh,
         on_delete=models.SET_NULL,
         null=True,
-        blank=True, # Pokud je druh volitelný
+        blank=True, 
         verbose_name='Druh dokumentu',
         help_text='Vyberte druh dokumentu.'
     )
     jazyk = models.CharField(
-        max_length=3, # Upravte max_length podle délky vašich zkratek
+        max_length=3, 
         choices=JAZYK_CHOICES,
         verbose_name='Jazyk dokumentu',
         help_text='Vyberte jazyk, ve kterém je dokument napsán.',
-        blank=False, # Nastavte na False, pokud je jazyk povinný
-        default='cs', # Volitelně nastavte výchozí jazyk
-        error_messages={'blank': 'Jazyk dokumentu musí být vybrán.'} # Pokud je povinnýllled
+        blank=False, 
+        default='cs', 
+        error_messages={'blank': 'Jazyk dokumentu musí být vybrán.'} 
     )
     def save(self, *args, **kwargs):
         self.typ = 'dokument'

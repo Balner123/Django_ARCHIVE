@@ -13,6 +13,8 @@ from .views import (
     edit_osoba_view,
     add_osoba_view,
     add_druh_view,
+    druhy_list_view,
+    delete_druh_view,
 )
 
 app_name = 'archiv_app'  # Přidání app_name pro jmenné prostory URL
@@ -32,5 +34,7 @@ urlpatterns = [
     path('fotografie/add/', add_object_form_view, {'form_type': 'fotografie'}, name='add_fotografie'),
     path('osoby/add/', add_osoba_view, name='add_osoba'),
     path('druh/add/', add_druh_view, name='add_druh'),
+    path('druhy/', druhy_list_view, name='druhy_list'),
+    path('druhy/delete/<int:pk>/', delete_druh_view, name='delete_druh'),
     path('add/', add_object_form_view, {'form_type': None}, name='add_object_form'),
 ] 

@@ -31,16 +31,6 @@
                     </form>
                 </div>
             </div>
-            
-            {% if type == 'dokument' or type == 'fotografie' %}
-            <div class="mt-4 text-center">
-                <p class="mb-0">
-                    <a href="{% url 'archiv_app:main' %}" class="text-decoration-none">
-                        <i class="fas fa-home me-1"></i> Zpět na hlavní stránku
-                    </a>
-                </p>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -49,31 +39,136 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Add custom styling to crispy form inputs
+    // --- Stylování formulářových prvků ---
     const formInputs = document.querySelectorAll('.form-control, .form-select');
     formInputs.forEach(input => {
         input.classList.add('mb-3');
     });
-    
-    // Add bold styling to form labels
-    const formLabels = document.querySelectorAll('label');
-    formLabels.forEach(label => {
-        label.style.fontWeight = '600';
-        label.style.textTransform = 'uppercase';
-        label.style.fontSize = '0.85rem';
+
+    // Cílíme na všechny labely a legendy pro sjednocení stylu
+    const formLabelsAndLegends = document.querySelectorAll('label, legend'); 
+    formLabelsAndLegends.forEach(el => {
+        // Neaplikujeme uppercase na labely jednotlivých radio/checkbox voleb, pokud jsou to ony
+        if (el.tagName === 'LEGEND' || !el.closest('.form-check')) {
+            el.style.fontWeight = '600';
+            el.style.textTransform = 'uppercase';
+            el.style.fontSize = '0.85rem';
+        } else {
+            // Pro labely u jednotlivých radio/checkbox (form-check-label)
+            // můžeme chtít mírně odlišný styl, např. bez uppercase
+            el.style.fontWeight = 'normal'; // Nebo ponechat výchozí
+            el.style.textTransform = 'none';
+            el.style.fontSize = '1rem'; // Nebo ponechat výchozí
+        }
     });
     
     // Check if the current form is for adding/editing a Dokument
     const addDruhLink = document.getElementById('add_new_druh_link');
     if (addDruhLink) {
         let addDruhUrl = "{% url 'archiv_app:add_druh' %}";
-        let currentPath = window.location.pathname + window.location.search;
-        addDruhLink.href = addDruhUrl + "?next=" + encodeURIComponent(currentPath);
+        addDruhLink.href = addDruhUrl;
+        addDruhLink.target = "_blank";
         
-        // Style the "add new druh" link as a button
-        addDruhLink.classList.add('btn', 'btn-sm', 'btn-outline-primary', 'mt-1');
-        addDruhLink.innerHTML = '<i class="fas fa-plus me-1"></i> Přidat nový druh';
+        addDruhLink.classList.remove('btn-outline-primary');
+        addDruhLink.classList.add('btn', 'btn-link', 'text-decoration-none', 'mt-1');
+        addDruhLink.style.fontSize = '0.875rem';
+        addDruhLink.style.color = '#0d6efd';  // Bootstrap primary blue
+        addDruhLink.style.opacity = '0.8';
+        addDruhLink.style.transition = 'all 0.2s ease';
+        addDruhLink.innerHTML = '+ Přidat druh';
+
+        // Hover efekt
+        addDruhLink.addEventListener('mouseenter', () => {
+            addDruhLink.style.opacity = '1';
+            addDruhLink.style.transform = 'translateX(3px)';
+        });
+        addDruhLink.addEventListener('mouseleave', () => {
+            addDruhLink.style.opacity = '0.8';
+            addDruhLink.style.transform = 'translateX(0)';
+        });
     }
+
+    // --- Nová dynamika pro pole datace vzniku ---
+    const typDataceRadios = document.querySelectorAll('input[name="typ_datace"]');
+    const datumPresneField = document.getElementById('div_id_datum_vzniku_presne'); // Crispy Forms obaluje pole do divů s id_div_NAZEV_POLE
+    const rokVznikuField = document.getElementById('div_id_rok_vzniku');
+    const stoletiVznikuField = document.getElementById('div_id_stoleti_vzniku');
+
+    const inputDatumPresne = document.getElementById('id_datum_vzniku_presne');
+    const inputRokVzniku = document.getElementById('id_rok_vzniku');
+    const inputStoletiVzniku = document.getElementById('id_stoleti_vzniku');
+
+    function toggleDataceFields() {
+        const selectedTyp = document.querySelector('input[name="typ_datace"]:checked').value;
+        
+        if (datumPresneField) datumPresneField.style.display = 'none';
+        if (rokVznikuField) rokVznikuField.style.display = 'none';
+        if (stoletiVznikuField) stoletiVznikuField.style.display = 'none';
+
+        // Nepotřebujeme dynamicky měnit required, protože to řeší `clean` metoda formuláře
+        // if (inputDatumPresne) inputDatumPresne.required = false;
+        // if (inputRokVzniku) inputRokVzniku.required = false;
+        // if (inputStoletiVzniku) inputStoletiVzniku.required = false;
+
+        if (selectedTyp === 'datum' && datumPresneField) {
+            datumPresneField.style.display = 'block';
+            // if (inputDatumPresne) inputDatumPresne.required = true;
+        } else if (selectedTyp === 'rok' && rokVznikuField) {
+            rokVznikuField.style.display = 'block';
+            // if (inputRokVzniku) inputRokVzniku.required = true;
+        } else if (selectedTyp === 'stoleti' && stoletiVznikuField) {
+            stoletiVznikuField.style.display = 'block';
+            // if (inputStoletiVzniku) inputStoletiVzniku.required = true;
+        }
+    }
+
+    if (typDataceRadios.length > 0 && datumPresneField && rokVznikuField && stoletiVznikuField) {
+        typDataceRadios.forEach(radio => {
+            radio.addEventListener('change', toggleDataceFields);
+        });
+        // Zavoláme funkci při načtení stránky pro správné zobrazení dle initial hodnoty
+        toggleDataceFields(); 
+    } else {
+        // Pokud některá pole chybí, vypíšeme varování do konzole, ale stránka by měla fungovat dál
+        // To by se nemělo stát, pokud jsou pole správně definována ve formuláři a vykreslena crispy-forms
+        if (!datumPresneField) console.warn('Crispy form field wrapper div_id_datum_vzniku_presne not found.');
+        if (!rokVznikuField) console.warn('Crispy form field wrapper div_id_rok_vzniku not found.');
+        if (!stoletiVznikuField) console.warn('Crispy form field wrapper div_id_stoleti_vzniku not found.');
+    }
+
+    // --- Přidání tlačítka "Přidat novou osobu" --- 
+    const osobyVyberDiv = document.getElementById('div_id_osoby_vyber');
+    if (osobyVyberDiv) {
+        const addOsobaButton = document.createElement('a');
+        addOsobaButton.href = "{% url 'archiv_app:add_osoba' %}";
+        addOsobaButton.target = "_blank";
+        addOsobaButton.classList.add('btn', 'btn-link', 'text-decoration-none');
+        addOsobaButton.style.fontSize = '0.875rem';
+        addOsobaButton.style.color = '#0d6efd';  // Bootstrap primary blue
+        addOsobaButton.style.opacity = '0.8';
+        addOsobaButton.style.transition = 'all 0.2s ease';
+        addOsobaButton.innerHTML = '+ Přidat novou osobu';
+        
+        const osobyVyberSelect = document.getElementById('id_osoby_vyber');
+        if (osobyVyberSelect && osobyVyberSelect.parentNode) {
+            osobyVyberSelect.parentNode.insertBefore(addOsobaButton, osobyVyberSelect.nextSibling);
+            addOsobaButton.style.marginTop = "0.5rem";
+            addOsobaButton.style.display = "block";
+
+            // Hover efekt
+            addOsobaButton.addEventListener('mouseenter', () => {
+                addOsobaButton.style.opacity = '1';
+                addOsobaButton.style.transform = 'translateX(3px)';
+            });
+            addOsobaButton.addEventListener('mouseleave', () => {
+                addOsobaButton.style.opacity = '0.8';
+                addOsobaButton.style.transform = 'translateX(0)';
+            });
+        } else {
+            osobyVyberDiv.parentNode.insertBefore(addOsobaButton, osobyVyberDiv.nextSibling);
+        }
+    }
+
 });
 </script>
 {% endblock %} 

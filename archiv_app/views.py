@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, Http404
 from django.views.decorators.http import require_POST
 from django.contrib import messages # Pro zobrazení zpráv uživateli
-from .models import Dokument, Fotografie, Osoba, Soubor
+from .models import Dokument, Fotografie, Osoba, Soubor, Druh
 from .forms import DokumentForm, FotografieForm, OsobaForm, DruhForm # Import formulářů
 from django.urls import reverse_lazy, reverse
 from django.conf import settings
@@ -44,13 +44,9 @@ def delete_dokument_view(request, pk):
         if dokument.soubor and dokument.soubor.file:
             dokument.soubor.file.delete(save=False) 
         
-
         if dokument.soubor:
-
             dokument.soubor = None 
             dokument.save() 
-
-            pass
 
         dokument.delete()
         messages.success(request, f"Dokument '{dokument.popis if dokument.popis else f'ID {dokument.pk}'}' byl úspěšně smazán.")
@@ -67,9 +63,7 @@ def delete_fotografie_view(request, pk):
         if fotografie.soubor and fotografie.soubor.file:
             fotografie.soubor.file.delete(save=False)
         
-
         if fotografie.soubor:
-
             fotografie.soubor = None 
             fotografie.save()
 
@@ -199,11 +193,11 @@ def add_osoba_view(request):
     template_name = 'archiv_app/object_form.html'
 
     if request.method == 'POST':
-        form = OsobaForm(request.POST) # No request.FILES needed for OsobaForm
+        form = OsobaForm(request.POST)
         if form.is_valid():
             instance = form.save()
             messages.success(request, f"Osoba '{instance}' byla úspěšně přidána.")
-            return redirect('archiv_app:osoby_list') # Redirect to the list of persons
+            return redirect('archiv_app:osoby_list')
         else:
             messages.error(request, "Prosím, opravte chyby ve formuláři.")
     else:
@@ -212,7 +206,7 @@ def add_osoba_view(request):
     return render(request, template_name, {
         'form': form, 
         'form_title': form_title, 
-        'type': 'osoba', # For the cancel button logic in object_form.html
+        'type': 'osoba', 
         'is_edit': False
     })
 
@@ -225,30 +219,44 @@ def add_druh_view(request):
         if form.is_valid():
             instance = form.save()
             messages.success(request, f"Druh dokumentu '{instance}' byl úspěšně přidán.")
-            # Redirect back to the previous page, or to where it makes sense.
-            # For now, let's redirect to add_object_form with type=dokument.
-            # A more sophisticated approach might use request.META.get('HTTP_REFERER')
-            # or pass a 'next' parameter.
-            # We also need to ensure the user was adding a document.
-            # For simplicity, we redirect to the add dokument form.
-            # This assumes the user came from there. 
-            # A better way is to pass a 'next' URL parameter.
-            next_url = request.GET.get('next')
-            if next_url:
-                return redirect(next_url)
-            else:
-                # Fallback if next is not provided, perhaps list of Druh objects or main page.
-                # For now, back to the add_dokument form.
-                return redirect(reverse('archiv_app:add_dokument'))
+            return redirect(reverse('archiv_app:druhy_list'))
         else:
             messages.error(request, "Prosím, opravte chyby ve formuláři.")
     else:
         form = DruhForm()
+    
+    cancel_url = reverse('archiv_app:druhy_list')
 
     return render(request, template_name, {
         'form': form,
         'form_title': form_title,
-        'type': 'druh', # For cancel button or other logic in object_form if needed
+        'type': 'druh',
         'is_edit': False,
-        'next': request.GET.get('next', reverse('archiv_app:add_dokument')) # Pass next to template for cancel button
+        'next': cancel_url
     })
+
+# --- Nové pohledy pro správu Druhů ---
+
+def druhy_list_view(request):
+    """View to list all Druh objects."""
+    druhy = Druh.objects.all().order_by('nazev')
+    context = {
+        'druhy_list': druhy,
+    }
+    return render(request, 'archiv_app/druhy_list.html', context)
+
+@require_POST
+def delete_druh_view(request, pk):
+    """View to delete a Druh object."""
+    druh = get_object_or_404(Druh, pk=pk)
+    try:
+        # Zjistíme, zda je tento druh používán v nějakých dokumentech
+        if Dokument.objects.filter(druh=druh).exists():
+            messages.error(request, f"Druh '{druh.nazev}' nelze smazat, protože je používán alespoň jedním dokumentem.")
+        else:
+            nazev_druhu = druh.nazev
+            druh.delete()
+            messages.success(request, f"Druh '{nazev_druhu}' byl úspěšně smazán.")
+    except Exception as e:
+        messages.error(request, f"Chyba při mazání druhu: {e}")
+    return redirect('archiv_app:druhy_list')

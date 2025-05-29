@@ -47,4 +47,4 @@ class ArchivovanyObjektAdmin(PolymorphicParentModelAdmin):
     base_model = ArchivovanyObjekt
     child_models = (Dokument, Fotografie)
     list_filter = (PolymorphicChildModelFilter,)
-    list_display = ("id", "typ", "osoba", "datum_archivace", "stari")
+    list_display = ("id", "typ", "osoba", "datum_archivace", "get_datace_display")

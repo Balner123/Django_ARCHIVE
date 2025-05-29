@@ -1,4 +1,4 @@
-{% extends 'archiv_app/base.html' %} {# Předpokládáme existenci base.html #}
+{% extends 'archiv_app/base.html' %}
 
 {% block title %}Seznam Fotografií{% endblock %}
 
@@ -96,9 +96,6 @@
                 <div class="text-center p-5">
                     <i class="fas fa-images fa-3x mb-3 text-secondary"></i>
                     <p class="lead">Nebyly nalezeny žádné fotografie.</p>
-                    <a href="{% url 'archiv_app:add_fotografie' %}" class="btn btn-primary mt-2">
-                        <i class="fas fa-plus me-2"></i>PŘIDAT FOTOGRAFII
-                    </a>
                 </div>
             {% endif %}
         </div>
