@@ -25,7 +25,6 @@ DATACE_CHOICES = [
 
 class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
     """Základní formulář pro ArchivovanyObjekt s FileUploadMixin."""
-    # Obecná pole, která chceme nahoře
     popis = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), label="Popis objektu", required=False)
     
     osoby_vyber = forms.ModelMultipleChoiceField(
@@ -59,21 +58,15 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
 
     class Meta:
         model = ArchivovanyObjekt 
-        # Explicitně definujeme pořadí, 'uploaded_file' je z Mixinu
         fields = ['popis', 'typ_datace', 'datum_vzniku_presne', 'rok_vzniku', 'stoleti_vzniku', 'osoby_vyber', 'uploaded_file'] 
-        # 'popis' je zde znovu, aby byl první, i když je definován i výše. Django formy to zvládnou.
-        # CrispyForms by měly respektovat pořadí fields.
-        widgets = { # widget pro popis je již definován výše
-            # Zde mohou být další widgety, pokud jsou potřeba pro pole z modelu
-        }
-        # help_texts mohou být zde, pokud nejsou u polí definovaných výše
+        # 'popis' je explicitně první, i když je definován i výše; widgety pro něj jsou již u definice pole.
+        # help_texts pro 'popis' je zde pro ukázku, pokud by bylo potřeba
         help_texts = {
-            'popis': 'Zadejte popis objektu.', # Příklad, pokud by nebyl u pole
+            'popis': 'Zadejte popis objektu.',
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Nastavení počátečních hodnot pro dataci, pokud instance existuje
         if self.instance and self.instance.pk:
             if self.instance.datum_vzniku_presne:
                 self.fields['typ_datace'].initial = 'datum'
@@ -84,13 +77,13 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
             elif self.instance.stoleti_vzniku:
                 self.fields['typ_datace'].initial = 'stoleti'
                 self.fields['stoleti_vzniku'].initial = self.instance.stoleti_vzniku
-            else: # Pokud nic není nastaveno, výchozí bude 'rok' a pole prázdná
+            else:
                 self.fields['typ_datace'].initial = 'rok'
 
-            # Inicializace osoby_vyber (zůstává stejná)
             initial_osoby = list(self.instance.osoby.all())
             if self.instance.osoba and self.instance.osoba not in initial_osoby:
                 initial_osoby.insert(0, self.instance.osoba) 
+            
             unique_initial_osoby = []
             seen_pks = set()
             for osoba_obj in initial_osoby:
@@ -98,10 +91,7 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
                     unique_initial_osoby.append(osoba_obj)
                     seen_pks.add(osoba_obj.pk)
             self.fields['osoby_vyber'].initial = unique_initial_osoby
-        else:
-            # Pro nový formulář, zajistíme, že jsou pole pro dataci správně nastavena dle initial 'typ_datace'
-            # Toto bude hlavně řešeno JS, ale můžeme nastavit výchozí required=False pro všechna datace pole
-            pass # JS se postará o zobrazení/skrytí a dynamické nastavení required
+        # else: Pro nový formulář se o zobrazení/skrytí polí datace a jejich `required` stará JS.
 
     def clean(self):
         cleaned_data = super().clean()
@@ -110,8 +100,7 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
         rok = cleaned_data.get('rok_vzniku')
         stoleti = cleaned_data.get('stoleti_vzniku')
 
-        # Resetujeme datace pole, která nejsou relevantní pro vybraný typ_datace
-        # a zajistíme, že relevantní pole je vyplněno.
+        # Validace a nulování nepoužitých polí datace
         if typ_datace == 'datum':
             if not datum_presne:
                 self.add_error('datum_vzniku_presne', "Toto pole je povinné, pokud je vybráno 'Přesné datum'.")
@@ -127,22 +116,14 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
                 self.add_error('stoleti_vzniku', "Toto pole je povinné, pokud je vybráno 'Století'.")
             cleaned_data['datum_vzniku_presne'] = None
             cleaned_data['rok_vzniku'] = None
-        else: # Mělo by být vždy vybráno díky required=True na typ_datace
+        else: 
             self.add_error('typ_datace', "Musíte vybrat způsob zadání datace.")
-
-        # Kontrola, zda je vyplněno alespoň něco (pokud je to požadavek)
-        # Tato logika je nyní efektivně pokryta výše, protože typ_datace je povinný
-        # a pro každý typ je pak povinné odpovídající pole.
-        # if not datum_presne and not rok and not stoleti:
-        #     raise ValidationError("Musíte vyplnit alespoň jednu formu datace.", code='no_datace')
-
         return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)
         instance = self.save_uploaded_file(instance)
 
-        # Uložení datace na základě vybraného typu
         typ_datace = self.cleaned_data.get('typ_datace')
         instance.datum_vzniku_presne = None
         instance.rok_vzniku = None
@@ -155,7 +136,6 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
         elif typ_datace == 'stoleti':
             instance.stoleti_vzniku = self.cleaned_data.get('stoleti_vzniku')
 
-        # Uložení osoby a osob (zůstává stejné)
         selected_osoby = self.cleaned_data.get('osoby_vyber')
         if selected_osoby:
             instance.osoba = selected_osoby[0] 
@@ -173,15 +153,12 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
 class DokumentForm(BaseArchivovanyObjektForm):
     class Meta(BaseArchivovanyObjektForm.Meta):
         model = Dokument
-        fields = BaseArchivovanyObjektForm.Meta.fields + ['druh', 'jazyk']
-        # Nyní musíme explicitně definovat celé pořadí pro DokumentForm
         fields = ['popis', 'druh', 'typ_datace', 'datum_vzniku_presne', 'rok_vzniku', 'stoleti_vzniku', 'jazyk', 'osoby_vyber', 'uploaded_file']
-        help_texts = {**BaseArchivovanyObjektForm.Meta.help_texts, # help_texts z Base by měly být přepsány/doplněny specifickými
-                        'popis': 'Zadejte popis dokumentu.', # Specifický help_text pro dokument
-                        'druh': 'Vyberte druh dokumentu. Pokud požadovaný druh chybí, můžete <a href="#" id="add_new_druh_link" class="text-decoration-none">'
-                                '<i class="fas fa-plus-circle me-1"></i>přidat nový druh</a>.',
-                        'jazyk': 'Vyberte jazyk dokumentu.'
-                       }
+        help_texts = {
+            'popis': 'Zadejte popis dokumentu.', 
+            'druh': 'Vyberte druh dokumentu. Pokud požadovaný druh chybí, můžete <a href="#" id="add_new_druh_link" class="text-decoration-none">přidat nový druh</a>.',
+            'jazyk': 'Vyberte jazyk dokumentu.'
+        }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -192,11 +169,11 @@ class FotografieForm(BaseArchivovanyObjektForm):
     class Meta(BaseArchivovanyObjektForm.Meta):
         model = Fotografie
         fields = BaseArchivovanyObjektForm.Meta.fields + ['typ_fotografie', 'vyska', 'sirka']
-        help_texts = {**BaseArchivovanyObjektForm.Meta.help_texts,
-                        'typ_fotografie': 'Např. portrét, krajina, reportážní, skupinová.',
-                        'vyska': 'Výška fotografie v cm.',
-                        'sirka': 'Šířka fotografie v cm.'
-                       }
+        help_texts = { 
+            'typ_fotografie': 'Např. portrét, krajina, reportážní, skupinová.',
+            'vyska': 'Výška fotografie v cm.',
+            'sirka': 'Šířka fotografie v cm.'
+        }
 
 class OsobaForm(forms.ModelForm):
     class Meta:
