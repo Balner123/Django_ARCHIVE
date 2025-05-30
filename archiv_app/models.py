@@ -1,15 +1,40 @@
 from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.core.exceptions import ValidationError
 from polymorphic.models import PolymorphicModel
+from django.db.models import Q
 
 class Osoba(models.Model):
-    jmeno = models.CharField(max_length=100, blank=False, null=False, help_text="Jméno osoby", verbose_name="Jméno", error_messages={'blank': 'Jméno osoby nesmí být prázdné.'})
-    prijmeni = models.CharField(max_length=100, blank=False, null=False, help_text="Příjmení osoby", verbose_name="Příjmení", error_messages={'blank': 'Příjmení osoby nesmí být prázdné.'})
-    narozeni = models.DateField(null=True, blank=True, help_text="Datum narození osoby", verbose_name="Datum narození")
-    umrti = models.DateField(null=True, blank=True, help_text="Datum úmrtí osoby", verbose_name="Datum úmrtí")
-    pohlavi = models.CharField(max_length=10, choices=[('M', 'Muž'), ('F', 'Žena')], blank=True, null=True, help_text="Pohlaví osoby", verbose_name="Pohlaví")
+    jmeno = models.CharField(
+        max_length=100, 
+        blank=False, 
+        help_text="Jméno osoby", 
+        verbose_name="Jméno", 
+        error_messages={'blank': 'Jméno osoby nesmí být prázdné.'})
+    
+    prijmeni = models.CharField(
+        max_length=100, 
+        blank=False, 
+        help_text="Příjmení osoby", 
+        verbose_name="Příjmení", 
+        error_messages={'blank': 'Příjmení osoby nesmí být prázdné.'})
+    
+    narozeni = models.DateField(
+        null=True, blank=True, 
+        help_text="Datum narození osoby", 
+        verbose_name="Datum narození")
+    
+    umrti = models.DateField(
+        null=True, blank=True, 
+        help_text="Datum úmrtí osoby", 
+        verbose_name="Datum úmrtí")
+    
+    pohlavi = models.CharField(
+        max_length=1, 
+        choices=[('M', 'Muž'), ('F', 'Žena')], 
+        blank=True, null=True, 
+        help_text="Pohlaví osoby", 
+        verbose_name="Pohlaví")
 
     class Meta:
         ordering = ['prijmeni', 'jmeno']
@@ -24,10 +49,10 @@ class Osoba(models.Model):
         return f"{self.jmeno} {self.prijmeni}"
 
     def get_archiválie_count(self):
-        main_object_ids = set(self.archivovanyobjekt_set.values_list('id', flat=True))
-        m2m_object_ids = set(self.objekty.values_list('id', flat=True))
-        total_unique_object_ids = main_object_ids.union(m2m_object_ids)
-        return len(total_unique_object_ids)
+        count = ArchivovanyObjekt.objects.filter(
+            Q(osoba=self) | Q(osoby=self)
+        ).distinct().count()
+        return count
 
 
 class Soubor(models.Model):
@@ -40,8 +65,16 @@ class Soubor(models.Model):
         return self.file.name
 
 class Druh(models.Model):
-    nazev = models.CharField(max_length=100, blank=False, help_text="Název druhu dokumentu", verbose_name="Název druhu", error_messages={'blank': 'Název druhu dokumentu nesmí být prázdný.'})
-    popis = models.TextField(blank=True, help_text="Popis druhu dokumentu", verbose_name="Popis druhu")
+    nazev = models.CharField(
+        max_length=100, blank=False, 
+        help_text="Název druhu dokumentu", 
+        verbose_name="Název druhu", 
+        error_messages={'blank': 'Název druhu dokumentu nesmí být prázdný.'})
+    
+    popis = models.TextField(
+        blank=True, 
+        help_text="Popis druhu dokumentu", 
+        verbose_name="Popis druhu")
     class Meta:
         ordering = ['nazev']
         verbose_name = 'Druh dokumentu'
@@ -68,7 +101,7 @@ class ArchivovanyObjekt(PolymorphicModel):
 
     typ = models.CharField(max_length=20, choices=TYPY_OBJEKTU, blank=False, help_text="Typ objektu", verbose_name="Typ objektu", error_messages={'blank': 'Typ objektu musí být vybrán.'})
     osoba = models.ForeignKey(Osoba, on_delete=models.SET_NULL, null=True, blank=True,help_text="Osoba, s objektem spojená", verbose_name="Osoba")
-    soubor = models.ForeignKey(Soubor, on_delete=models.SET_NULL, null=True, blank=True, help_text="Soubor k archivaci", verbose_name="Soubor")
+    soubor = models.ForeignKey(Soubor, on_delete=models.CASCADE, null=True, blank=True, help_text="Soubor k archivaci", verbose_name="Soubor")
     datum_archivace = models.DateField(default=timezone.now, help_text="Datum archivace objektu", verbose_name="Datum archivace")
     popis = models.TextField(blank=True, help_text="Popis objektu", verbose_name="Popis")
     
@@ -82,7 +115,7 @@ class ArchivovanyObjekt(PolymorphicModel):
         verbose_name="Rok vzniku", 
         null=True, blank=True, 
         help_text="Rok vzniku objektu (např. 1950).",
-        validators=[MinValueValidator(1000), MaxValueValidator(timezone.now().year + 5)] # Příklad validátorů
+        validators=[MinValueValidator(1000), MaxValueValidator(timezone.now().year + 5)]
     )
     stoleti_vzniku = models.CharField(
         max_length=2, 
@@ -98,18 +131,7 @@ class ArchivovanyObjekt(PolymorphicModel):
         ordering = ['-datum_archivace', 'typ']
         verbose_name = 'Archivovaný objekt'
         verbose_name_plural = 'Archivované objekty'
-    
-    def clean(self):
-        super().clean()
-        datace_fields = [self.datum_vzniku_presne, self.rok_vzniku, self.stoleti_vzniku]
-        filled_datace_fields = sum(1 for field in datace_fields if field is not None)
         
-        if filled_datace_fields > 1:
-            raise ValidationError("Vyplňte prosím pouze jednu možnost datace (Přesné datum, Rok, nebo Století).")
-        # Pokud chcete, aby alespoň jedna byla povinná, přidejte:
-        # if filled_datace_fields == 0:
-        #     raise ValidationError("Je nutné vyplnit alespoň jednu formu datace (Přesné datum, Rok, nebo Století).")
-
     def get_datace_display(self):
         if self.datum_vzniku_presne:
             return self.datum_vzniku_presne.strftime("%d.%m.%Y")
@@ -122,6 +144,11 @@ class ArchivovanyObjekt(PolymorphicModel):
 
     def __str__(self):
         return f"{self.typ.capitalize()} #{self.id} ({self.get_datace_display()})"
+    
+    def delete(self, *args, **kwargs):
+        if self.soubor and self.soubor.file:
+            self.soubor.file.delete(save=False)
+        super().delete(*args, **kwargs)
 
 class Dokument(ArchivovanyObjekt):
     JAZYK_CHOICES = [

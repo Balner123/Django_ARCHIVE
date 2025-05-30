@@ -18,17 +18,17 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <a href="{% url 'archiv_app:add_dokument' %}" class="btn btn-danger w-100 py-3">
+                            <a href="{% url 'add_dokument' %}" class="btn btn-danger w-100 py-3">
                                 <i class="fas fa-file-alt me-2"></i>PŘIDAT DOKUMENT
                             </a>
                         </div>
                         <div class="col-md-4">
-                            <a href="{% url 'archiv_app:add_fotografie' %}" class="btn btn-success w-100 py-3">
+                            <a href="{% url 'add_fotografie' %}" class="btn btn-success w-100 py-3">
                                 <i class="fas fa-camera me-2"></i>PŘIDAT FOTOGRAFII
                             </a>
                         </div>
                         <div class="col-md-4">
-                            <a href="{% url 'archiv_app:add_osoba' %}" class="btn btn-primary w-100 py-3">
+                            <a href="{% url 'add_osoba' %}" class="btn btn-primary w-100 py-3">
                                 <i class="fas fa-user-plus me-2"></i>PŘIDAT OSOBU
                             </a>
                         </div>
@@ -49,7 +49,7 @@
                 <div class="card-body d-flex flex-column align-items-center justify-content-center">
                     <div class="display-1 fw-bold mb-3">{{ dokumenty_count }}</div>
                     <p class="text-muted mb-4">celkový počet dokumentů v archivu</p>
-                    <a href="{% url 'archiv_app:dokumenty_list' %}" class="btn btn-secondary mt-auto w-100">
+                    <a href="{% url 'dokumenty_list' %}" class="btn btn-secondary mt-auto w-100">
                         <i class="fas fa-list me-2"></i>ZOBRAZIT VŠE
                     </a>
                 </div>
@@ -63,7 +63,7 @@
                 <div class="card-body d-flex flex-column align-items-center justify-content-center">
                     <div class="display-1 fw-bold mb-3">{{ fotografie_count }}</div>
                     <p class="text-muted mb-4">celkový počet fotografií v archivu</p>
-                    <a href="{% url 'archiv_app:fotografie_list' %}" class="btn btn-secondary mt-auto w-100">
+                    <a href="{% url 'fotografie_list' %}" class="btn btn-secondary mt-auto w-100">
                         <i class="fas fa-images me-2"></i>ZOBRAZIT VŠE
                     </a>
                 </div>
@@ -77,7 +77,7 @@
                 <div class="card-body d-flex flex-column align-items-center justify-content-center">
                     <div class="display-1 fw-bold mb-3">{{ osoby_count }}</div>
                     <p class="text-muted mb-4">celkový počet osob v archivu</p>
-                    <a href="{% url 'archiv_app:osoby_list' %}" class="btn btn-secondary mt-auto w-100">
+                    <a href="{% url 'osoby_list' %}" class="btn btn-secondary mt-auto w-100">
                         <i class="fas fa-users me-2"></i>ZOBRAZIT VŠE
                     </a> 
                 </div>
