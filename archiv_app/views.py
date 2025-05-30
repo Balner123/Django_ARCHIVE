@@ -1,7 +1,7 @@
 from django.views.decorators.http import require_POST
-from django.contrib import messages # Pro zobrazení zpráv uživateli
+from django.contrib import messages
 from .models import Dokument, Fotografie, Osoba, Soubor, Druh
-from .forms import DokumentForm, FotografieForm, OsobaForm, DruhForm # Import formulářů
+from .forms import DokumentForm, FotografieForm, OsobaForm, DruhForm
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404, render, redirect
 
@@ -48,9 +48,6 @@ def druhy_list_view(request):
         'druhy_list': druhy,
     }
     return render(request, 'archiv_app/druhy_list.html', context)
-
-
-
 
 @require_POST
 def delete_druh_view(request, pk):

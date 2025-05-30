@@ -2,8 +2,17 @@ from django import forms
 from django.core.exceptions import ValidationError
 from .models import Dokument, Fotografie, Soubor, Osoba, Druh, STOLETÍ_CHOICES, ArchivovanyObjekt
 
+TEXTAREA_ROWS = 3
+OSOBA_SELECT_SIZE = 8
+MIN_YEAR = 1000
+MAX_YEAR = 2100
+
+# Společné widget atributy
+DATE_WIDGET_ATTRS = {'type': 'date', 'class': 'form-control'}
+TEXTAREA_WIDGET_ATTRS = {'rows': TEXTAREA_ROWS, 'class': 'form-control'}
+NUMBER_WIDGET_ATTRS = {'class': 'form-control', 'min': MIN_YEAR, 'max': MAX_YEAR}
+
 class FileUploadMixin(forms.Form):
-    """Mixin pro přidání pole pro nahrání souboru a logiku pro jeho uložení."""
     uploaded_file = forms.FileField(
         label="Soubor k nahrání", 
         required=False, 
@@ -25,7 +34,11 @@ DATACE_CHOICES = [
 
 class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
     """Základní formulář pro ArchivovanyObjekt s FileUploadMixin."""
-    popis = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), label="Popis objektu", required=False)
+    popis = forms.CharField(
+        widget=forms.Textarea(attrs={'rows': 3}), 
+        label="Popis objektu", 
+        required=False
+    )
     
     osoby_vyber = forms.ModelMultipleChoiceField(
         queryset=Osoba.objects.all().order_by('prijmeni', 'jmeno'),
@@ -35,172 +48,95 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
         required=False
     )
 
-    typ_datace = forms.ChoiceField(
-        choices=DATACE_CHOICES,
-        widget=forms.RadioSelect,
-        label="Způsob zadání datace vzniku",
-        required=True,
-        initial='rok' 
-    )
+    # Zjednodušená datační pole - bez složitého typ_datace
     datum_vzniku_presne = forms.DateField(
-        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control datace-field'}),
-        required=False, label="Přesné datum vzniku"
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        required=False, 
+        label="Přesné datum vzniku"
     )
     rok_vzniku = forms.IntegerField(
-        widget=forms.NumberInput(attrs={'class': 'form-control datace-field'}),
-        required=False, label="Rok vzniku"
+        widget=forms.NumberInput(attrs={'min': 1000, 'max': 2100}),
+        required=False, 
+        label="Rok vzniku"
     )
     stoleti_vzniku = forms.ChoiceField(
         choices=[('', '---------')] + STOLETÍ_CHOICES,
-        widget=forms.Select(attrs={'class': 'form-select datace-field'}),
-        required=False, label="Století vzniku"
+        required=False, 
+        label="Století vzniku"
     )
 
     class Meta:
         model = ArchivovanyObjekt 
-        fields = ['popis', 'typ_datace', 'datum_vzniku_presne', 'rok_vzniku', 'stoleti_vzniku', 'osoby_vyber', 'uploaded_file'] 
-        # 'popis' je explicitně první, i když je definován i výše; widgety pro něj jsou již u definice pole.
-        # help_texts pro 'popis' je zde pro ukázku, pokud by bylo potřeba
-        help_texts = {
-            'popis': 'Zadejte popis objektu.',
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.instance and self.instance.pk:
-            if self.instance.datum_vzniku_presne:
-                self.fields['typ_datace'].initial = 'datum'
-                self.fields['datum_vzniku_presne'].initial = self.instance.datum_vzniku_presne
-            elif self.instance.rok_vzniku:
-                self.fields['typ_datace'].initial = 'rok'
-                self.fields['rok_vzniku'].initial = self.instance.rok_vzniku
-            elif self.instance.stoleti_vzniku:
-                self.fields['typ_datace'].initial = 'stoleti'
-                self.fields['stoleti_vzniku'].initial = self.instance.stoleti_vzniku
-            else:
-                self.fields['typ_datace'].initial = 'rok'
-
-            initial_osoby = list(self.instance.osoby.all())
-            if self.instance.osoba and self.instance.osoba not in initial_osoby:
-                initial_osoby.insert(0, self.instance.osoba) 
-            
-            unique_initial_osoby = []
-            seen_pks = set()
-            for osoba_obj in initial_osoby:
-                if osoba_obj.pk not in seen_pks:
-                    unique_initial_osoby.append(osoba_obj)
-                    seen_pks.add(osoba_obj.pk)
-            self.fields['osoby_vyber'].initial = unique_initial_osoby
-        # else: Pro nový formulář se o zobrazení/skrytí polí datace a jejich `required` stará JS.
+        fields = ['popis', 'datum_vzniku_presne', 'rok_vzniku', 'stoleti_vzniku', 'osoby_vyber', 'uploaded_file']
 
     def clean(self):
         cleaned_data = super().clean()
-        typ_datace = cleaned_data.get('typ_datace')
         datum_presne = cleaned_data.get('datum_vzniku_presne')
         rok = cleaned_data.get('rok_vzniku')
         stoleti = cleaned_data.get('stoleti_vzniku')
 
-        # Validace a nulování nepoužitých polí datace
-        if typ_datace == 'datum':
-            if not datum_presne:
-                self.add_error('datum_vzniku_presne', "Toto pole je povinné, pokud je vybráno 'Přesné datum'.")
-            cleaned_data['rok_vzniku'] = None
-            cleaned_data['stoleti_vzniku'] = None
-        elif typ_datace == 'rok':
-            if not rok:
-                self.add_error('rok_vzniku', "Toto pole je povinné, pokud je vybrán 'Rok'.")
-            cleaned_data['datum_vzniku_presne'] = None
-            cleaned_data['stoleti_vzniku'] = None
-        elif typ_datace == 'stoleti':
-            if not stoleti:
-                self.add_error('stoleti_vzniku', "Toto pole je povinné, pokud je vybráno 'Století'.")
-            cleaned_data['datum_vzniku_presne'] = None
-            cleaned_data['rok_vzniku'] = None
-        else: 
-            self.add_error('typ_datace', "Musíte vybrat způsob zadání datace.")
+        # Kontrola, že je vyplněno právě jedno datační pole
+        filled_fields = sum(1 for field in [datum_presne, rok, stoleti] if field)
+        
+        if filled_fields == 0:
+            raise ValidationError("Musíte vyplnit alespoň jedno z datačních polí (datum, rok nebo století).")
+        elif filled_fields > 1:
+            raise ValidationError("Vyplňte pouze jedno datační pole.")
+            
         return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)
         instance = self.save_uploaded_file(instance)
 
-        typ_datace = self.cleaned_data.get('typ_datace')
-        instance.datum_vzniku_presne = None
-        instance.rok_vzniku = None
-        instance.stoleti_vzniku = None
-
-        if typ_datace == 'datum':
-            instance.datum_vzniku_presne = self.cleaned_data.get('datum_vzniku_presne')
-        elif typ_datace == 'rok':
-            instance.rok_vzniku = self.cleaned_data.get('rok_vzniku')
-        elif typ_datace == 'stoleti':
-            instance.stoleti_vzniku = self.cleaned_data.get('stoleti_vzniku')
-
+        # Zpracování osob
         selected_osoby = self.cleaned_data.get('osoby_vyber')
         if selected_osoby:
-            instance.osoba = selected_osoby[0] 
+            instance.osoba = selected_osoby[0]
         else:
             instance.osoba = None
 
         if commit:
             instance.save()
-            if selected_osoby: 
+            if selected_osoby:
                 instance.osoby.set(selected_osoby)
             else:
                 instance.osoby.clear()
+        
         return instance
-
 class DokumentForm(BaseArchivovanyObjektForm):
     class Meta(BaseArchivovanyObjektForm.Meta):
         model = Dokument
-        fields = ['popis', 'druh', 'typ_datace', 'datum_vzniku_presne', 'rok_vzniku', 'stoleti_vzniku', 'jazyk', 'osoby_vyber', 'uploaded_file']
-        help_texts = {
-            'popis': 'Zadejte popis dokumentu.', 
-            'druh': 'Vyberte druh dokumentu. Pokud požadovaný druh chybí, můžete <a href="#" id="add_new_druh_link" class="text-decoration-none">přidat nový druh</a>.',
-            'jazyk': 'Vyberte jazyk dokumentu.'
-        }
-    
+        fields = BaseArchivovanyObjektForm.Meta.fields + ['druh', 'jazyk']
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.add_file_field()
         self.fields['druh'].queryset = Druh.objects.all().order_by('nazev')
-        self.fields['druh'].required = False
 
 class FotografieForm(BaseArchivovanyObjektForm):
     class Meta(BaseArchivovanyObjektForm.Meta):
         model = Fotografie
         fields = BaseArchivovanyObjektForm.Meta.fields + ['typ_fotografie', 'vyska', 'sirka']
-        help_texts = { 
-            'typ_fotografie': 'Např. portrét, krajina, reportážní, skupinová.',
-            'vyska': 'Výška fotografie v cm.',
-            'sirka': 'Šířka fotografie v cm.'
-        }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_file_field()
+        
+# Základní formuláře
 class OsobaForm(forms.ModelForm):
     class Meta:
         model = Osoba
         fields = ['jmeno', 'prijmeni', 'narozeni', 'umrti', 'pohlavi']
         widgets = {
-            'narozeni': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
-            'umrti': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'narozeni': forms.DateInput(attrs=DATE_WIDGET_ATTRS),
+            'umrti': forms.DateInput(attrs=DATE_WIDGET_ATTRS),
         }
-        help_texts = {
-            'narozeni': 'Zadejte datum ve formátu RRRR-MM-DD.',
-            'umrti': 'Zadejte datum ve formátu RRRR-MM-DD (pokud je známo).',
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['narozeni'].required = False
-        self.fields['umrti'].required = False
 
 class DruhForm(forms.ModelForm):
     class Meta:
         model = Druh
         fields = ['nazev', 'popis']
         widgets = {
-            'popis': forms.Textarea(attrs={'rows': 3}),
+            'popis': forms.Textarea(attrs=TEXTAREA_WIDGET_ATTRS),
         }
-        help_texts = {
-            'nazev': 'Zadejte jedinečný název pro nový druh dokumentu.',
-            'popis': 'Volitelný popis pro tento druh dokumentu.'
-        } 
