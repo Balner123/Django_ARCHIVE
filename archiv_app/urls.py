@@ -1,6 +1,9 @@
 from django.urls import path
 from .views import *
 
+
+app_name = 'archiv_app'
+
 urlpatterns = [
     path('', main_page, name='main'),
     path('dokumenty/', dokumenty_list_view, name='dokumenty_list'),
@@ -17,8 +20,8 @@ urlpatterns = [
     path('osoby/delete/<int:pk>/', delete_osoba_view, name='delete_osoba'),
     path('druhy/delete/<int:pk>/', delete_druh_view, name='delete_druh'),
     
-    path('dokumenty/add/', add_dokument_view, {'form_type': 'dokument'}, name='add_dokument'),
-    path('fotografie/add/', add_fotografie_view, {'form_type': 'fotografie'}, name='add_fotografie'),
+    path('dokumenty/add/', add_dokument_view, name='add_dokument'),
+    path('fotografie/add/', add_fotografie_view, name='add_fotografie'),
     path('osoby/add/', add_osoba_view, name='add_osoba'),
     path('druh/add/', add_druh_view, name='add_druh'),
 ] 

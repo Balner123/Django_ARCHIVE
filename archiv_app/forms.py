@@ -110,7 +110,6 @@ class DokumentForm(BaseArchivovanyObjektForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.add_file_field()
         self.fields['druh'].queryset = Druh.objects.all().order_by('nazev')
 
 class FotografieForm(BaseArchivovanyObjektForm):
@@ -120,7 +119,6 @@ class FotografieForm(BaseArchivovanyObjektForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.add_file_field()
 
 class OsobaForm(forms.ModelForm):
     class Meta:
