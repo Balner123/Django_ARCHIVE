@@ -84,7 +84,6 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
 
     class Meta:
         model = ArchivovanyObjekt 
-        # Přidáno typ_datace, uploaded_file bylo už v fields mixinu, ale pro jistotu i zde
         fields = ['popis', 'typ_datace', 'datum_vzniku_presne', 'rok_vzniku', 'stoleti_vzniku', 'osoby_vyber', 'uploaded_file']
 
     def __init__(self, *args, **kwargs):
@@ -94,6 +93,15 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
         button_osoba_html = f' <a href="{add_osoba_url}" target="_blank" class="btn btn-sm btn-outline-secondary ms-2">Přidat osobu</a>'
         self.fields['osoby_vyber'].help_text = mark_safe(current_osoby_help_text + button_osoba_html)
 
+        # Nastavení počáteční hodnoty pro typ_datace při editaci
+        if self.instance and self.instance.pk:  # Pokud je to editace existující instance
+            if self.instance.datum_vzniku_presne:
+                self.fields['typ_datace'].initial = 'datum'
+            elif self.instance.rok_vzniku:
+                self.fields['typ_datace'].initial = 'rok'
+            elif self.instance.stoleti_vzniku:
+                self.fields['typ_datace'].initial = 'stoleti'
+
     def clean(self):
         cleaned_data = super().clean()
         typ_datace = cleaned_data.get('typ_datace')
@@ -101,8 +109,27 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
         rok = cleaned_data.get('rok_vzniku')
         stoleti = cleaned_data.get('stoleti_vzniku')
 
-        if not typ_datace: # Mělo by být chyceno required=True na poli, ale pro jistotu
+        if not typ_datace: 
             raise ValidationError("Musíte zvolit typ datace.")
+
+        # Obnovená validace - kontrola, zda je vyplněno správné pole a ostatní jsou prázdná
+        if typ_datace == 'datum':
+            if not datum_presne:
+                self.add_error('datum_vzniku_presne', "Při typu datace 'Přesné datum' musí být datum vyplněno.")
+            if rok or stoleti: # Kontrola, zda ostatní nejsou vyplněna
+                self.add_error('typ_datace', "Pokud je zvoleno 'Přesné datum', pole Rok a Století musí být prázdná.")
+        
+        elif typ_datace == 'rok':
+            if not rok:
+                self.add_error('rok_vzniku', "Při typu datace 'Rok' musí být rok vyplněn.")
+            if datum_presne or stoleti: # Kontrola, zda ostatní nejsou vyplněna
+                self.add_error('typ_datace', "Pokud je zvolen 'Rok', pole Přesné datum a Století musí být prázdná.")
+
+        elif typ_datace == 'stoleti':
+            if not stoleti:
+                self.add_error('stoleti_vzniku', "Při typu datace 'Století' musí být století vyplněno.")
+            if datum_presne or rok: # Kontrola, zda ostatní nejsou vyplněna
+                self.add_error('typ_datace', "Pokud je zvoleno 'Století', pole Přesné datum a Rok musí být prázdná.")
             
         return cleaned_data
 
@@ -200,7 +227,7 @@ class OsobaForm(forms.ModelForm):
         if narozeni and umrti:
             if umrti < narozeni:
                 self.add_error('umrti', "Datum úmrtí nemůže být před datem narození.")
-            elif umrti == narozeni: # Volitelné: Osoba nemůže zemřít a narodit se ve stejný den (pokud to není požadavek)
+            elif umrti == narozeni:
                 self.add_error('umrti', "Datum úmrtí nemůže být stejné jako datum narození.")
 
         return cleaned_data
