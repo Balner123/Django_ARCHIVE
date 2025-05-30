@@ -43,28 +43,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    const typDataceRadios = document.querySelectorAll('input[name="typ_datace"]');
+    // Úprava pro <select> element namísto radio buttonů
+    const typDataceSelect = document.getElementById('id_typ_datace'); // Změněno na ID selectu
     const datumPresneField = document.getElementById('div_id_datum_vzniku_presne');
     const rokVznikuField = document.getElementById('div_id_rok_vzniku');
     const stoletiVznikuField = document.getElementById('div_id_stoleti_vzniku');
 
-    // Není třeba input elementů, protože je nepoužíváme přímo pro logiku skrývání/zobrazování.
-    // const inputDatumPresne = document.getElementById('id_datum_vzniku_presne');
-    // const inputRokVzniku = document.getElementById('id_rok_vzniku');
-    // const inputStoletiVzniku = document.getElementById('id_stoleti_vzniku');
-
     function toggleDataceFields() {
-        if (typDataceRadios.length === 0) return; // Pokud nejsou radio buttony, nic nedělat
+        // Pokud hlavní select pro typ datace neexistuje, nic nedělat
+        if (!typDataceSelect) {
+            // Volitelně logovat, pokud jsou ostatní pole přítomna, ale hlavní select chybí
+            // if (datumPresneField || rokVznikuField || stoletiVznikuField) {
+            //     console.warn('Element id_typ_datace (select) not found, but other date fields exist.');
+            // }
+            return; 
+        }
 
-        const selectedTyp = document.querySelector('input[name="typ_datace"]:checked');
-        if (!selectedTyp) return; // Pokud není žádný vybraný, nic nedělat
+        const selectedTypValue = typDataceSelect.value; // Získání hodnoty ze selectu
         
-        const selectedTypValue = selectedTyp.value;
-        
+        // Skrýt všechna pole na začátku
         if (datumPresneField) datumPresneField.style.display = 'none';
         if (rokVznikuField) rokVznikuField.style.display = 'none';
         if (stoletiVznikuField) stoletiVznikuField.style.display = 'none';
 
+        // Zobrazit relevantní pole
         if (selectedTypValue === 'datum' && datumPresneField) {
             datumPresneField.style.display = 'block';
         } else if (selectedTypValue === 'rok' && rokVznikuField) {
@@ -74,14 +76,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    if (typDataceRadios.length > 0) { // Kontrola, zda existují radio buttony typ_datace
-        typDataceRadios.forEach(radio => {
-            radio.addEventListener('change', toggleDataceFields);
-        });
-        toggleDataceFields(); // Zavoláme funkci při načtení stránky
+    // Navázání event listeneru a počáteční volání, pokud select existuje
+    if (typDataceSelect) { 
+        typDataceSelect.addEventListener('change', toggleDataceFields);
+        toggleDataceFields(); // Zavoláme funkci při načtení stránky pro správné zobrazení
     } else {
         // Logování pro debug, pokud nejsou nalezeny hlavní elementy pro dataci
-        // Tyto console.warn by měly být odstraněny v produkci, ale jsou užitečné při vývoji
+        // Toto by mělo být odstraněno/upraveno v produkci
         if (!datumPresneField) console.warn('Crispy form field wrapper div_id_datum_vzniku_presne not found.');
         if (!rokVznikuField) console.warn('Crispy form field wrapper div_id_rok_vzniku not found.');
         if (!stoletiVznikuField) console.warn('Crispy form field wrapper div_id_stoleti_vzniku not found.');
