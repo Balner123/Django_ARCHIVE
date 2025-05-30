@@ -1,8 +1,6 @@
 from django.urls import path
 from .views import *
 
-app_name = 'archiv_app'  # Přidání app_name pro jmenné prostory URL
-
 urlpatterns = [
     path('', main_page, name='main'),
     path('dokumenty/', dokumenty_list_view, name='dokumenty_list'),

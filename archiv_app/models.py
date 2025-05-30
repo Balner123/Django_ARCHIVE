@@ -98,14 +98,38 @@ class ArchivovanyObjekt(PolymorphicModel):
         ('dokument', 'Dokument'),
         ('fotografie', 'Fotografie'),
     ]
-
-    typ = models.CharField(max_length=20, choices=TYPY_OBJEKTU, blank=False, help_text="Typ objektu", verbose_name="Typ objektu", error_messages={'blank': 'Typ objektu musí být vybrán.'})
-    osoba = models.ForeignKey(Osoba, on_delete=models.SET_NULL, null=True, blank=True,help_text="Osoba, s objektem spojená", verbose_name="Osoba")
-    soubor = models.ForeignKey(Soubor, on_delete=models.CASCADE, null=True, blank=True, help_text="Soubor k archivaci", verbose_name="Soubor")
-    datum_archivace = models.DateField(default=timezone.now, help_text="Datum archivace objektu", verbose_name="Datum archivace")
-    popis = models.TextField(blank=True, help_text="Popis objektu", verbose_name="Popis")
+    typ = models.CharField(
+        max_length=20, 
+        choices=TYPY_OBJEKTU, 
+        blank=False, 
+        help_text="Typ objektu", 
+        verbose_name="Typ objektu", 
+        error_messages={'blank': 'Typ objektu musí být vybrán.'})
     
-    # Původní pole 'stari' je nahrazeno těmito třemi:
+    osoba = models.ForeignKey(
+        Osoba, 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True,
+        help_text="Osoba, s objektem spojená", 
+        verbose_name="Osoba")
+    
+    soubor = models.ForeignKey(
+        Soubor, 
+        on_delete=models.CASCADE, 
+        null=True, blank=True, 
+        help_text="Soubor k archivaci", 
+        verbose_name="Soubor")
+    
+    datum_archivace = models.DateField(
+        default=timezone.now, 
+        help_text="Datum archivace objektu", 
+        verbose_name="Datum archivace")
+    
+    popis = models.TextField(
+        blank=True, 
+        help_text="Popis objektu", 
+        verbose_name="Popis")
+    
     datum_vzniku_presne = models.DateField(
         verbose_name="Přesné datum vzniku", 
         null=True, blank=True, 
