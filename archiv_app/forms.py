@@ -75,7 +75,6 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
         rok = cleaned_data.get('rok_vzniku')
         stoleti = cleaned_data.get('stoleti_vzniku')
 
-        # Kontrola, že je vyplněno právě jedno datační pole
         filled_fields = sum(1 for field in [datum_presne, rok, stoleti] if field)
         
         if filled_fields == 0:
@@ -122,8 +121,7 @@ class FotografieForm(BaseArchivovanyObjektForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.add_file_field()
-        
-# Základní formuláře
+
 class OsobaForm(forms.ModelForm):
     class Meta:
         model = Osoba
