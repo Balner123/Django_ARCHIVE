@@ -1,14 +1,13 @@
 from django.views.decorators.http import require_POST
 from django.contrib import messages
-from .models import Dokument, Fotografie, Osoba, Soubor, Druh
-from .forms import DokumentForm, FotografieForm, OsobaForm, DruhForm
+from .models import *
+from .forms import *
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404, render, redirect
+from django.db import models, IntegrityError
 
 
-# Create your views here.
 def main_page(request):
-    """View for the main page of the archive site - now only statistics."""
     context = {
         'dokumenty_count': Dokument.objects.count(),
         'fotografie_count': Fotografie.objects.count(),
@@ -16,109 +15,92 @@ def main_page(request):
     }
     return render(request, 'archiv_app/main.html', context)
 
-def dokumenty_list_view(request):
-    """View to list all documents."""
-    dokumenty = Dokument.objects.all()
+def _generic_list_view(request, ModelClass: type[models.Model], template_name: str, context_object_name: str, order_by_field: str = None):
+    queryset = ModelClass.objects.all()
+    if order_by_field:
+        queryset = queryset.order_by(order_by_field)
+    
     context = {
-        'dokumenty_list': dokumenty,
+        context_object_name: queryset,
     }
-    return render(request, 'archiv_app/dokumenty_list.html', context)
+    return render(request, template_name, context)
+
+def dokumenty_list_view(request):
+    return _generic_list_view(request, Dokument, 'archiv_app/dokumenty_list.html', 'dokumenty_list')
 
 def fotografie_list_view(request):
-    """View to list all photographs."""
-    fotografie = Fotografie.objects.all()
-    context = {
-        'fotografie_list': fotografie,
-    }
-    return render(request, 'archiv_app/fotografie_list.html', context)
+    return _generic_list_view(request, Fotografie, 'archiv_app/fotografie_list.html', 'fotografie_list')
 
 def osoby_list_view(request):
-    """View to list all persons."""
-    osoby_queryset = Osoba.objects.all()
-
-    context = {
-        'osoby': osoby_queryset,
-    }
-    return render(request, 'archiv_app/osoby_list.html', context)
+    return _generic_list_view(request, Osoba, 'archiv_app/osoby_list.html', 'osoby')
 
 def druhy_list_view(request):
-    """View to list all Druh objects."""
-    druhy = Druh.objects.all().order_by('nazev')
-    context = {
-        'druhy_list': druhy,
-    }
-    return render(request, 'archiv_app/druhy_list.html', context)
+    return _generic_list_view(request, Druh, 'archiv_app/druhy_list.html', 'druhy_list', order_by_field='nazev')
+
+def _druh_pre_delete_check(druh_instance):
+    if Dokument.objects.filter(druh=druh_instance).exists():
+        return False, f"Druh '{druh_instance.nazev}' nelze smazat, protože je používán alespoň jedním dokumentem."
+    return True, ""
+
+def _delete_associated_soubor_callback(instance_being_deleted):
+    soubor_obj = getattr(instance_being_deleted, 'soubor', None)
+    if soubor_obj:
+        soubor_obj.delete()
+
+@require_POST
+def _generic_delete_view(request, pk, ModelClass: type[models.Model], 
+                         success_url_name: str, 
+                         obj_type_name: str,
+                         pre_delete_check_callback=None, 
+                         pre_main_obj_delete_related_callback=None):
+    obj = get_object_or_404(ModelClass, pk=pk)
+    obj_repr = str(obj) 
+
+    if pre_delete_check_callback:
+        can_delete, message = pre_delete_check_callback(obj)
+        if not can_delete:
+            messages.error(request, message)
+            return redirect(success_url_name)
+
+    try:
+        if pre_main_obj_delete_related_callback:
+            pre_main_obj_delete_related_callback(obj)
+
+        obj.delete()
+        messages.success(request, f"{obj_type_name.capitalize()} '{obj_repr}' byl úspěšně smazán.")
+    except IntegrityError:
+        messages.error(request, f"{obj_type_name.capitalize()} '{obj_repr}' nelze smazat, protože je používán v jiných záznamech.")
+    except Exception as e:
+        messages.error(request, f"Chyba při mazání {obj_type_name.lower()} '{obj_repr}': {e}")
+    
+    return redirect(success_url_name)
 
 @require_POST
 def delete_druh_view(request, pk):
-    """View to delete a Druh object."""
-    druh = get_object_or_404(Druh, pk=pk)
-    try:
-        # Zjistíme, zda je tento druh používán v nějakých dokumentech
-        if Dokument.objects.filter(druh=druh).exists():
-            messages.error(request, f"Druh '{druh.nazev}' nelze smazat, protože je používán alespoň jedním dokumentem.")
-        else:
-            nazev_druhu = druh.nazev
-            druh.delete()
-            messages.success(request, f"Druh '{nazev_druhu}' byl úspěšně smazán.")
-    except Exception as e:
-        messages.error(request, f"Chyba při mazání druhu: {e}")
-    return redirect('archiv_app:druhy_list')
+    return _generic_delete_view(request, pk, Druh, 
+                                success_url_name=reverse_lazy('archiv_app:druhy_list'), 
+                                obj_type_name="Druh",
+                                pre_delete_check_callback=_druh_pre_delete_check)
 
 @require_POST
 def delete_dokument_view(request, pk):
-    """View to delete a document."""
-    dokument = get_object_or_404(Dokument, pk=pk)
-
-    try:
-        # Pokud soubor existuje, smažeme ho nejprve z disku
-        if dokument.soubor and dokument.soubor.file:
-            dokument.soubor.file.delete(save=False) 
-        
-        if dokument.soubor:
-            dokument.soubor = None 
-            dokument.save() 
-
-        dokument.delete()
-        messages.success(request, f"Dokument '{dokument.popis if dokument.popis else f'ID {dokument.pk}'}' byl úspěšně smazán.")
-    except Exception as e:
-        messages.error(request, f"Chyba při mazání dokumentu: {e}")
-    return redirect('archiv_app:dokumenty_list')
+    return _generic_delete_view(request, pk, Dokument, 
+                                success_url_name=reverse_lazy('archiv_app:dokumenty_list'), 
+                                obj_type_name="Dokument",
+                                pre_main_obj_delete_related_callback=_delete_associated_soubor_callback)
 
 @require_POST
 def delete_fotografie_view(request, pk):
-    """View to delete a photograph."""
-    fotografie = get_object_or_404(Fotografie, pk=pk)
-
-    try:
-        if fotografie.soubor and fotografie.soubor.file:
-            fotografie.soubor.file.delete(save=False)
-        
-        if fotografie.soubor:
-            fotografie.soubor = None 
-            fotografie.save()
-
-        fotografie.delete()
-        messages.success(request, f"Fotografie '{fotografie.popis if fotografie.popis else f'ID {fotografie.pk}'}' byla úspěšně smazána.")
-    except Exception as e:
-        messages.error(request, f"Chyba při mazání fotografie: {e}")
-    return redirect('archiv_app:fotografie_list')
+    return _generic_delete_view(request, pk, Fotografie, 
+                                success_url_name=reverse_lazy('archiv_app:fotografie_list'), 
+                                obj_type_name="Fotografie",
+                                pre_main_obj_delete_related_callback=_delete_associated_soubor_callback)
 
 @require_POST
 def delete_osoba_view(request, pk):
-    """View to delete a person."""
-    osoba = get_object_or_404(Osoba, pk=pk)
-
-    try:
-
-        jmeno_osoby = str(osoba) 
-        osoba.delete()
-        messages.success(request, f"Osoba '{jmeno_osoby}' byla úspěšně smazána.")
-    except Exception as e:
-
-        messages.error(request, f"Chyba při mazání osoby: {e}")
-    return redirect('archiv_app:osoby_list')
-
+    return _generic_delete_view(request, pk, Osoba, 
+                                success_url_name=reverse_lazy('archiv_app:osoby_list'), 
+                                obj_type_name="Osoba")
 
 def _generic_add_view(request, FormClass, success_url_name, form_title, object_type_name_singular, template_name='archiv_app/object_form.html'):
     if request.method == 'POST':
@@ -173,7 +155,7 @@ def add_druh_view(request):
         DruhForm,
         reverse_lazy('archiv_app:druhy_list'),
         "Přidat nový druh dokumentu",
-        "Druh dokumentu" # Nebo jen "Druh"
+        "Druh dokumentu" 
     )
 
 def _generic_edit_view(request, pk, ModelClass, FormClass, success_url_name, form_title_prefix, template_name='archiv_app/object_form.html'):

@@ -1,4 +1,21 @@
-/* Modern Cubic Design - Bootstrap 5 Enhancement */
+html, body {
+  height: 100%; /* Zajistí, že html a body zaberou celou výšku okna */
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Alternativa k height: 100% pro body, často robustnější */
+  font-family: 'Roboto', 'Segoe UI', sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+  background-color: #f8f8f8; 
+}
+
+main.container {
+  flex-grow: 1; /* Umožní <main> elementu roztáhnout se a vyplnit dostupný prostor */
+  /* py-4 (padding top a bottom) je již nastaveno přes Bootstrap třídu, to je v pořádku */
+}
 
 :root {
   --primary-color: #002f75;
@@ -9,24 +26,15 @@
   --danger-color: #5f0000;
   --light-color: #ffffff;
   --dark-color: #212529;
-  --border-radius: 1px;  /* Cubic design - sharp corners */
-}
-
-/* Typography */
-body {
-  font-family: 'Roboto', 'Segoe UI', sans-serif;
-  font-weight: 400;
-  line-height: 1.6;
-  background-color: #f8f8f8; /* Light gray background */
+  --border-radius: 1px;  
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-weight: 700;  /* Bold headers */
+  font-weight: 700;  
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-/* Buttons */
 .btn {
   border-radius: var(--border-radius);
   text-transform: uppercase;
@@ -34,7 +42,7 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: 0.5px;
   padding: 0.6rem 1.2rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.1s, box-shadow 0.1s;
 }
 
 .btn:hover {
@@ -42,7 +50,6 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Cards */
 .card {
   border-radius: var(--border-radius);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -63,7 +70,6 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--border-radius) var(--border-radius) 0 0 !important;
 }
 
-/* Forms */
 .form-control, .form-select {
   border-radius: var(--border-radius);
   padding: 0.6rem 0.75rem;
@@ -75,21 +81,6 @@ h1, h2, h3, h4, h5, h6 {
   border-color: var(--primary-color);
 }
 
-/* Tables */
-.table {
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-.table thead th {
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background-color: var(--light-color);
-  border-bottom: 2px solid var(--dark-color);
-}
-
-/* Utilities */
 .shadow-cubic {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.068);
 }
@@ -99,12 +90,93 @@ h1, h2, h3, h4, h5, h6 {
   color: rgb(82, 0, 0);
 }
 
-/* Footer */
 footer {
   padding: 2rem 0;
   background-color: var(--light-color);
   border-top: 1px solid #afafaf;
   margin-top: 3rem;
 }
+
+.custom-minimal-table {
+  width: 100%;
+  margin-top: 0;
+  margin-bottom: 0;
+  border-collapse: collapse; 
+  font-size: 0.9rem; 
+  border: 1px solid #dee2e6; 
+}
+
+.custom-minimal-table thead th {
+  background-color: #f8f9fa; 
+  color: #495057; 
+  font-weight: 600; 
+  text-transform: uppercase; 
+  letter-spacing: 0.5px;
+  border-bottom-width: 2px; 
+  border-top: 1px solid #dee2e6; 
+  border-left: 1px solid #dee2e6;
+  border-right: 1px solid #dee2e6;
+}
+
+.custom-minimal-table th,
+.custom-minimal-table td {
+  padding: 0.6rem 0.75rem; 
+  text-align: left; 
+  vertical-align: middle; 
+  border: 1px solid #e9ecef; 
+}
+
+.custom-minimal-table tbody tr:nth-child(odd) {
+  background-color: rgba(0, 0, 0, 0.02); 
+}
+
+.custom-minimal-table tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.04); 
+}
+
+.custom-minimal-table th.actions-column,
+.custom-minimal-table td.actions-column {
+  text-align: right;  
+}
+
+.custom-minimal-table .img-thumbnail-table {
+    max-height: 100px;
+    width: auto;
+    max-width: 100%; 
+    height: auto;
+    border-radius: var(--border-radius);
+}
+
+.custom-minimal-table .btn-sm {
+    display: flex; 
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 30px;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+    line-height: normal; 
+    text-align: center;
+    white-space: nowrap; 
+    border-radius: 0;
+}
+
+.custom-minimal-table td.cell-actions-fill {
+    padding: 0 !important; 
+    min-height: auto;
+}
+
+.custom-minimal-table .btn .fas {
+    margin-right: 0.3rem;
+}
+
+.custom-minimal-table .btn .fas:only-child {
+    margin-right: 0;
+}
+
+
+
 
 

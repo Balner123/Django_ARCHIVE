@@ -2,22 +2,21 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.safestring import mark_safe
 from django.urls import reverse
-from datetime import date # Přidáno pro validaci datumu
-from .models import Dokument, Fotografie, Soubor, Osoba, Druh, STOLETÍ_CHOICES, ArchivovanyObjekt
+from datetime import date
+from .models import *
 
 TEXTAREA_ROWS = 3
 OSOBA_SELECT_SIZE = 8
 MIN_YEAR = 1000
 MAX_YEAR = 2100
 
-# Společné widget atributy
+
 DATE_WIDGET_ATTRS = {'type': 'date', 'class': 'form-control'}
 TEXTAREA_WIDGET_ATTRS = {'rows': TEXTAREA_ROWS, 'class': 'form-control'}
 NUMBER_WIDGET_ATTRS = {'class': 'form-control', 'min': MIN_YEAR, 'max': MAX_YEAR}
 
-# Definice pro typ datace, již existuje
 DATACE_CHOICES = [
-    ('', '--------- Vyberte typ datace ---------'), # Přidána prázdná volba
+    ('', '--------- Vyberte typ datace ---------'),
     ('datum', 'Přesné datum'),
     ('rok', 'Rok'),
     ('stoleti', 'Století'),
@@ -44,34 +43,33 @@ class FileUploadMixin(forms.Form):
 
 class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
     popis = forms.CharField(
-        widget=forms.Textarea(attrs={'rows': 3}), 
+        widget=forms.Textarea(attrs=TEXTAREA_WIDGET_ATTRS), 
         label="Popis objektu", 
         required=False
     )
     
     osoby_vyber = forms.ModelMultipleChoiceField(
         queryset=Osoba.objects.all().order_by('prijmeni', 'jmeno'),
-        widget=forms.SelectMultiple(attrs={'size': 8}),
+        widget=forms.SelectMultiple(attrs={'size': OSOBA_SELECT_SIZE}),
         label="Osoby spojené s objektem",
         help_text="Vyberte jednu nebo více osob (podržením Ctrl/Cmd). První vybraná osoba bude označena jako hlavní.",
         required=False
     )
 
-    # Pole pro výběr typu datace
     typ_datace = forms.ChoiceField(
         choices=DATACE_CHOICES,
-        required=True, # Výběr typu je povinný
+        required=True,
         label="Typ datace vzniku",
-        widget=forms.Select(attrs={'class': 'form-select'}) # Bootstrap třída pro select
+        widget=forms.Select(attrs={'class': 'form-select'})
     )
 
     datum_vzniku_presne = forms.DateField(
-        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}), # Přidána class
+        widget=forms.DateInput(attrs=DATE_WIDGET_ATTRS),
         required=False, 
         label="Přesné datum vzniku"
     )
     rok_vzniku = forms.IntegerField(
-        widget=forms.NumberInput(attrs={'min': 1000, 'max': 2100, 'class': 'form-control'}), # Přidána class
+        widget=forms.NumberInput(attrs=NUMBER_WIDGET_ATTRS),
         required=False, 
         label="Rok vzniku"
     )
@@ -79,22 +77,28 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
         choices=[('', '---------')] + STOLETÍ_CHOICES,
         required=False, 
         label="Století vzniku",
-        widget=forms.Select(attrs={'class': 'form-select'}) # Bootstrap třída pro select
+        widget=forms.Select(attrs={'class': 'form-select'})
     )
 
     class Meta:
         model = ArchivovanyObjekt 
         fields = ['popis', 'typ_datace', 'datum_vzniku_presne', 'rok_vzniku', 'stoleti_vzniku', 'osoby_vyber', 'uploaded_file']
 
+    def _add_create_button_to_help_text(self, field_name, add_url_name, button_text):
+        if field_name in self.fields:
+            current_help_text = self.fields[field_name].help_text or ""
+            if not isinstance(current_help_text, str):
+                 current_help_text = str(current_help_text)
+
+            add_url = reverse(add_url_name)
+            button_html = f' <a href="{add_url}" target="_blank" class="btn btn-sm btn-outline-secondary ms-2">{button_text}</a>'
+            self.fields[field_name].help_text = mark_safe(current_help_text + button_html)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        current_osoby_help_text = self.fields['osoby_vyber'].help_text
-        add_osoba_url = reverse('archiv_app:add_osoba')
-        button_osoba_html = f' <a href="{add_osoba_url}" target="_blank" class="btn btn-sm btn-outline-secondary ms-2">Přidat osobu</a>'
-        self.fields['osoby_vyber'].help_text = mark_safe(current_osoby_help_text + button_osoba_html)
+        self._add_create_button_to_help_text('osoby_vyber', 'archiv_app:add_osoba', 'Přidat osobu')
 
-        # Nastavení počáteční hodnoty pro typ_datace při editaci
-        if self.instance and self.instance.pk:  # Pokud je to editace existující instance
+        if self.instance and self.instance.pk:
             if self.instance.datum_vzniku_presne:
                 self.fields['typ_datace'].initial = 'datum'
             elif self.instance.rok_vzniku:
@@ -112,23 +116,22 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
         if not typ_datace: 
             raise ValidationError("Musíte zvolit typ datace.")
 
-        # Obnovená validace - kontrola, zda je vyplněno správné pole a ostatní jsou prázdná
         if typ_datace == 'datum':
             if not datum_presne:
                 self.add_error('datum_vzniku_presne', "Při typu datace 'Přesné datum' musí být datum vyplněno.")
-            if rok or stoleti: # Kontrola, zda ostatní nejsou vyplněna
+            if rok or stoleti:
                 self.add_error('typ_datace', "Pokud je zvoleno 'Přesné datum', pole Rok a Století musí být prázdná.")
         
         elif typ_datace == 'rok':
             if not rok:
                 self.add_error('rok_vzniku', "Při typu datace 'Rok' musí být rok vyplněn.")
-            if datum_presne or stoleti: # Kontrola, zda ostatní nejsou vyplněna
+            if datum_presne or stoleti:
                 self.add_error('typ_datace', "Pokud je zvolen 'Rok', pole Přesné datum a Století musí být prázdná.")
 
         elif typ_datace == 'stoleti':
             if not stoleti:
                 self.add_error('stoleti_vzniku', "Při typu datace 'Století' musí být století vyplněno.")
-            if datum_presne or rok: # Kontrola, zda ostatní nejsou vyplněna
+            if datum_presne or rok:
                 self.add_error('typ_datace', "Pokud je zvoleno 'Století', pole Přesné datum a Rok musí být prázdná.")
             
         return cleaned_data
@@ -139,7 +142,6 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
 
         typ_datace = self.cleaned_data.get('typ_datace')
 
-        # Vyčistit datační pole podle typu datace
         if typ_datace == 'datum':
             instance.rok_vzniku = None
             instance.stoleti_vzniku = None
@@ -149,8 +151,6 @@ class BaseArchivovanyObjektForm(FileUploadMixin, forms.ModelForm):
         elif typ_datace == 'stoleti':
             instance.datum_vzniku_presne = None
             instance.rok_vzniku = None
-        # Pokud by typ_datace nebyl z nějakého důvodu nastaven, raději vyčistíme všechna specifická pole
-        # aby se do DB nedostala nekonzistence, i když validace by to měla chytit.
         elif not typ_datace: 
             instance.datum_vzniku_presne = None
             instance.rok_vzniku = None
@@ -188,9 +188,7 @@ class DokumentForm(BaseArchivovanyObjektForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['druh'].queryset = Druh.objects.all().order_by('nazev')
-        add_druh_url = reverse('archiv_app:add_druh')
-        button_druh_html = f'<a href="{add_druh_url}" target="_blank" class="btn btn-sm btn-outline-secondary ms-2">Přidat druh</a>'
-        self.fields['druh'].help_text = mark_safe(button_druh_html)
+        self._add_create_button_to_help_text('druh', 'archiv_app:add_druh', 'Přidat druh')
 
 class FotografieForm(BaseArchivovanyObjektForm):
     class Meta(BaseArchivovanyObjektForm.Meta):
@@ -215,7 +213,7 @@ class OsobaForm(forms.ModelForm):
         if narozeni:
             if narozeni > today:
                 self.add_error('narozeni', "Datum narození nemůže být v budoucnosti.")
-            if narozeni.year < MIN_YEAR: # Používáme MIN_YEAR i pro osoby
+            if narozeni.year < MIN_YEAR:
                 self.add_error('narozeni', f"Rok narození musí být {MIN_YEAR} nebo pozdější.")
 
         if umrti:

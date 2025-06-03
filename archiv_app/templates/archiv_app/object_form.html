@@ -16,7 +16,6 @@
                     <form method="post" enctype="multipart/form-data" action=".">
                         {% csrf_token %}
                         {{ form|crispy }}
-                        {# Placeholder for the JavaScript to find and enhance #}
                         <a id="add_new_druh_link" data-add-druh-url="{% url 'archiv_app:add_druh' %}" style="display: none;"></a>
 
                         <div class="d-flex gap-2 mt-4">
