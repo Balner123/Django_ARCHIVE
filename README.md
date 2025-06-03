@@ -6,6 +6,8 @@ tento projekt obsahuje webovou aplikaci v Djangu jenž má za cíl organizovat a
 ### Start-up
 ```
 git clone {github url}
+python -m .venv venv
+pip install -r requirements.txt
 python ./manage.py runserver
 ```
 ---
